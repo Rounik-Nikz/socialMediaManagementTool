@@ -98,6 +98,14 @@ class PostScheduler {
       console.log(`Cancelled scheduled post ${postId}`);
     }
   }
+
+  cancelJob(postId) {
+    if (this.jobs.has(postId)) {
+      this.jobs.get(postId).cancel();
+      this.jobs.delete(postId);
+      console.log(`Cancelled scheduled job for post ${postId}`);
+    }
+  }
 }
 
 // Create singleton instance

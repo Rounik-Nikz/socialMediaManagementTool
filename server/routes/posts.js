@@ -8,10 +8,13 @@ const scheduler = require('../services/scheduler');
 // Get all posts for the authenticated user
 router.get('/', auth, async (req, res) => {
   try {
+    console.log('Fetching posts for user:', req.user.id);
     const posts = await Post.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    console.log('Found posts:', posts.length);
     res.json(posts);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching posts:', error);
+    res.status(500).json({ message: 'Error fetching posts' });
   }
 });
 
@@ -71,26 +74,36 @@ router.get('/status/:status', auth, async (req, res) => {
 });
 
 // Update a post
-router.patch('/:id', auth, async (req, res) => {
+router.put('/:id', auth, async (req, res) => {
   try {
+    const { topic, text, platform, scheduledDate, mediaFileName, status } = req.body;
+    
+    // Validate required fields
+    if (!topic || !text || !platform) {
+      return res.status(400).json({ message: 'Missing required fields: topic, text, and platform are required' });
+    }
+
     const post = await Post.findOne({ _id: req.params.id, userId: req.user.id });
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    const allowedUpdates = ['topic', 'text', 'platform', 'scheduledDate', 'mediaFileName', 'status'];
-    const updates = Object.keys(req.body);
+    // Update post fields
+    post.topic = topic;
+    post.text = text;
+    post.platform = platform;
+    post.status = status || post.status;
+    post.mediaFileName = mediaFileName || post.mediaFileName;
     
-    updates.forEach(update => {
-      if (allowedUpdates.includes(update)) {
-        post[update] = req.body[update];
-      }
-    });
+    if (scheduledDate) {
+      post.scheduledDate = new Date(scheduledDate);
+    }
 
-    const updatedPost = await post.save();
-    res.json(updatedPost);
+    await post.save();
+    res.json(post);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error updating post:', error);
+    res.status(500).json({ message: 'Error updating post' });
   }
 });
 
@@ -102,10 +115,11 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    await post.remove();
+    await Post.findByIdAndDelete(req.params.id);
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error deleting post:', error);
+    res.status(500).json({ message: 'Error deleting post' });
   }
 });
 
@@ -263,6 +277,57 @@ router.get('/analytics', auth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching analytics:', error);
     res.status(500).json({ message: 'Error fetching analytics data' });
+  }
+});
+
+// Update a scheduled post
+router.put('/scheduled/:id', auth, async (req, res) => {
+  try {
+    const { title, content, platforms, scheduledDate } = req.body;
+    
+    // Validate required fields
+    if (!title || !content || !platforms || !Array.isArray(platforms)) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const post = await ScheduledPost.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Update post fields
+    post.title = title;
+    post.content = content;
+    post.platforms = platforms;
+    if (scheduledDate) {
+      post.scheduledDate = new Date(scheduledDate);
+    }
+
+    await post.save();
+    scheduler.schedulePost(post); // Reschedule the post with new date
+    res.json(post);
+  } catch (error) {
+    console.error('Error updating scheduled post:', error);
+    res.status(500).json({ message: 'Error updating scheduled post' });
+  }
+});
+
+// Delete a scheduled post
+router.delete('/scheduled/:id', auth, async (req, res) => {
+  try {
+    const post = await ScheduledPost.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Cancel the scheduled job if it exists
+    scheduler.cancelJob(post._id.toString());
+    
+    await ScheduledPost.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Scheduled post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting scheduled post:', error);
+    res.status(500).json({ message: 'Error deleting scheduled post' });
   }
 });
 

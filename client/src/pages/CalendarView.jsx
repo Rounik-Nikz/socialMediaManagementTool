@@ -25,79 +25,72 @@ const CalendarView = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      console.log('Fetching posts with token:', token ? 'Token present' : 'No token');
-
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await axiosInstance.get('/posts/scheduled', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      console.log('Response data:', response.data);
+      console.log('Starting to fetch posts...');
+      
+      const response = await axiosInstance.get('/posts');
+      console.log('Posts response:', response.data);
 
       if (!response.data || !Array.isArray(response.data)) {
+        console.error('Invalid response format:', response.data);
         throw new Error('Invalid response format');
       }
 
-      const formattedEvents = response.data.map(post => ({
-        id: post._id,
-        title: `${post.platforms?.[0] || 'Unknown'}: ${post.title || post.content.substring(0, 30)}...`,
-        start: post.scheduledDate,
-        backgroundColor: getPlatformColor(post.platforms?.[0]),
-        borderColor: getPlatformColor(post.platforms?.[0]),
-        textColor: '#ffffff',
-        extendedProps: {
-          platform: post.platforms?.[0],
-          text: post.content,
-          topic: post.title,
-          status: post.status,
-          mediaFileName: post.mediaUrl
-        }
-      }));
-      console.log('Formatted events:', formattedEvents);
+      // Filter for posts that have a scheduledDate
+      const scheduledPosts = response.data.filter(post => post.scheduledDate);
+      console.log('Scheduled posts:', scheduledPosts);
+
+      const formattedEvents = scheduledPosts.map(post => {
+        console.log('Processing post:', post);
+        const event = {
+          id: post._id,
+          title: `${post.platform || 'Unknown'}: ${post.topic || (post.text ? post.text.substring(0, 30) : 'No content')}...`,
+          start: post.scheduledDate,
+          backgroundColor: getPlatformColor(post.platform),
+          borderColor: getPlatformColor(post.platform),
+          textColor: '#ffffff',
+          extendedProps: {
+            platform: post.platform,
+            text: post.text,
+            topic: post.topic,
+            status: post.status,
+            mediaFileName: post.mediaFileName
+          }
+        };
+        console.log('Created event:', event);
+        return event;
+      });
+
+      console.log('All formatted events:', formattedEvents);
       setEvents(formattedEvents);
       setError('');
     } catch (err) {
+      console.error('Error fetching posts:', err);
       console.error('Error details:', {
         message: err.message,
         response: err.response?.data,
-        status: err.response?.status,
-        config: {
-          url: err.config?.url,
-          method: err.config?.method,
-          headers: err.config?.headers
-        }
+        status: err.response?.status
       });
-
-      if (err.response?.status === 401) {
-        localStorage.removeItem('token');
-        navigate('/login');
-      } else if (err.response?.status === 404) {
-        setError('Scheduled posts endpoint not found. Please check the API configuration.');
-      } else if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else if (err.message === 'No authentication token found') {
-        setError('Please log in to view scheduled posts');
-      } else {
-        setError('Failed to fetch scheduled posts. Please try again later.');
-      }
+      setError(err.response?.data?.message || 'Failed to fetch posts');
     } finally {
       setLoading(false);
     }
   };
 
   const getPlatformColor = (platform) => {
+    console.log('Getting color for platform:', platform);
     const colors = {
       Instagram: '#E1306C',
       Twitter: '#1DA1F2',
       LinkedIn: '#0077B5',
       Facebook: '#4267B2'
     };
-    return colors[platform] || '#666666';
+    // Handle case-insensitive platform names
+    const platformKey = Object.keys(colors).find(
+      key => key.toLowerCase() === (platform || '').toLowerCase()
+    );
+    const color = platformKey ? colors[platformKey] : '#666666';
+    console.log('Selected color:', color);
+    return color;
   };
 
   if (loading) {
