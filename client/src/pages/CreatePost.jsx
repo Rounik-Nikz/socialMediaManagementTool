@@ -1,21 +1,20 @@
 import { useState } from 'react';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import axiosInstance from '../utils/axios';
 
 const CreatePost = () => {
   const [formData, setFormData] = useState({
+    topic: '',
     text: '',
     platform: 'Instagram',
     scheduledDate: '',
     mediaFileName: '',
-    topic: '',
-    tone: 'friendly'
+    aiGenerated: false
   });
 
-  const [aiGeneratedContent, setAiGeneratedContent] = useState({
-    post: '',
-    hashtags: '',
-    rewritten: ''
-  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,205 +24,187 @@ const CreatePost = () => {
     }));
   };
 
-  const handleGeneratePost = async () => {
-    try {
-      const response = await axios.post('http://localhost:5000/api/ai/generate-post', {
-        topic: formData.topic,
-        tone: formData.tone,
-        platform: formData.platform
-      });
-      setAiGeneratedContent(prev => ({
-        ...prev,
-        post: response.data.text
-      }));
-      setFormData(prev => ({
-        ...prev,
-        text: response.data.text
-      }));
-    } catch (error) {
-      console.error('Error generating post:', error);
-    }
-  };
-
-  const handleGenerateHashtags = async () => {
-    try {
-      const response = await axios.post('http://localhost:5000/api/ai/generate-hashtags', {
-        topic: formData.topic,
-        platform: formData.platform
-      });
-      setAiGeneratedContent(prev => ({
-        ...prev,
-        hashtags: response.data.suggestions
-      }));
-    } catch (error) {
-      console.error('Error generating hashtags:', error);
-    }
-  };
-
-  const handleRewritePost = async () => {
-    try {
-      const response = await axios.post('http://localhost:5000/api/ai/rewrite-post', {
-        caption: formData.text
-      });
-      setAiGeneratedContent(prev => ({
-        ...prev,
-        rewritten: response.data.text
-      }));
-      setFormData(prev => ({
-        ...prev,
-        text: response.data.text
-      }));
-    } catch (error) {
-      console.error('Error rewriting post:', error);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
     try {
-      await axios.post('http://localhost:5000/api/posts', {
-        ...formData,
-        aiGenerated: !!aiGeneratedContent.post
-      });
+      const isScheduled = !!formData.scheduledDate;
+      const endpoint = isScheduled ? '/posts/scheduled' : '/posts';
+
+      // Validate required fields
+      if (!formData.text || !formData.platform) {
+        throw new Error('Post text and platform are required');
+      }
+
+      // Validate scheduled date is in the future
+      if (isScheduled) {
+        const scheduledTime = new Date(formData.scheduledDate).getTime();
+        const now = new Date().getTime();
+        if (scheduledTime <= now) {
+          throw new Error('Scheduled date must be in the future');
+        }
+      }
+
+      const postData = {
+        topic: formData.topic,
+        text: formData.text,
+        platform: formData.platform.toLowerCase(),
+        scheduledDate: formData.scheduledDate || new Date(),
+        mediaFileName: formData.mediaFileName,
+        aiGenerated: formData.aiGenerated
+      };
+
+      console.log('Sending post data:', postData); // Debug log
+
+      const response = await axiosInstance.post(endpoint, postData);
+
+      console.log('Response:', response); // Debug log
+
       // Reset form
       setFormData({
+        topic: '',
         text: '',
         platform: 'Instagram',
         scheduledDate: '',
         mediaFileName: '',
-        topic: '',
-        tone: 'friendly'
+        aiGenerated: false
       });
-      setAiGeneratedContent({
-        post: '',
-        hashtags: '',
-        rewritten: ''
-      });
-      alert('Post created successfully!');
+
+      // Show success message
+      alert(isScheduled ? 'Post scheduled successfully!' : 'Post created successfully!');
+      
+      // Navigate to dashboard
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error creating post:', error);
+      if (error.response?.status === 401) {
+        // If token is invalid, clear it and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        navigate('/login');
+      } else {
+        setError(error.response?.data?.message || error.message || 'Error creating post. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Create New Post</h1>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Platform</label>
-          <select
-            name="platform"
-            value={formData.platform}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          >
-            <option value="Instagram">Instagram</option>
-            <option value="Twitter">Twitter</option>
-            <option value="LinkedIn">LinkedIn</option>
-            <option value="Facebook">Facebook</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Topic</label>
-          <input
-            type="text"
-            name="topic"
-            value={formData.topic}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            placeholder="What's your post about?"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Tone</label>
-          <select
-            name="tone"
-            value={formData.tone}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          >
-            <option value="friendly">Friendly</option>
-            <option value="professional">Professional</option>
-            <option value="casual">Casual</option>
-            <option value="humorous">Humorous</option>
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={handleGeneratePost}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Generate Post with AI
-          </button>
-          <button
-            type="button"
-            onClick={handleGenerateHashtags}
-            className="ml-2 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Generate Hashtags
-          </button>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Post Text</label>
-          <textarea
-            name="text"
-            value={formData.text}
-            onChange={handleChange}
-            rows={4}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            placeholder="Write your post here..."
-          />
-          <button
-            type="button"
-            onClick={handleRewritePost}
-            className="mt-2 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Rewrite My Caption
-          </button>
-        </div>
-
-        {aiGeneratedContent.hashtags && (
-          <div className="p-4 bg-gray-50 rounded-md">
-            <h3 className="text-sm font-medium text-gray-700">AI Generated Hashtags</h3>
-            <p className="mt-1 text-sm text-gray-600">{aiGeneratedContent.hashtags}</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+              Create New Post
+            </h1>
+            <p className="mt-2 text-gray-600">Craft and schedule your social media content</p>
           </div>
-        )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Schedule Date & Time</label>
-          <input
-            type="datetime-local"
-            name="scheduledDate"
-            value={formData.scheduledDate}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
+          {error && (
+            <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
+                <select
+                  name="platform"
+                  value={formData.platform}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="Instagram">Instagram</option>
+                  <option value="Twitter">Twitter</option>
+                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="Facebook">Facebook</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Topic</label>
+                <input
+                  type="text"
+                  name="topic"
+                  value={formData.topic}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="What's your post about?"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Post Text</label>
+              <textarea
+                name="text"
+                value={formData.text}
+                onChange={handleChange}
+                rows={6}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                placeholder="Write your post here..."
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Schedule Date & Time</label>
+                <input
+                  type="datetime-local"
+                  name="scheduledDate"
+                  value={formData.scheduledDate}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Media File (Optional)</label>
+                <input
+                  type="text"
+                  name="mediaFileName"
+                  value={formData.mediaFileName}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Enter media file name"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </div>
+              ) : (
+                'Schedule Post'
+              )}
+            </button>
+          </form>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Media File (Optional)</label>
-          <input
-            type="text"
-            name="mediaFileName"
-            value={formData.mediaFileName}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            placeholder="Enter media file name"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          Schedule Post
-        </button>
-      </form>
+      </div>
     </div>
   );
 };

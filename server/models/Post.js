@@ -1,37 +1,51 @@
 const mongoose = require('mongoose');
 
 const postSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  topic: {
+    type: String,
+    required: true
+  },
   text: {
     type: String,
     required: true
   },
   platform: {
     type: String,
-    required: true,
-    enum: ['Instagram', 'Twitter', 'LinkedIn', 'Facebook']
-  },
-  scheduledDate: {
-    type: Date,
+    enum: ['Instagram', 'Twitter', 'LinkedIn', 'Facebook'],
     required: true
   },
+  scheduledDate: {
+    type: Date
+  },
   mediaFileName: {
-    type: String,
-    default: null
+    type: String
   },
   aiGenerated: {
     type: Boolean,
     default: false
+  },
+  status: {
+    type: String,
+    enum: ['draft', 'published', 'failed'],
+    default: 'draft'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  publishedAt: {
+    type: Date
   },
   // Dummy metrics
   metrics: {
     likes: { type: Number, default: 0 },
     reach: { type: Number, default: 0 },
     comments: { type: Number, default: 0 }
-  },
-  status: {
-    type: String,
-    enum: ['scheduled', 'posted'],
-    default: 'scheduled'
   }
 }, {
   timestamps: true
