@@ -130,7 +130,8 @@ router.post('/scheduled', auth, async (req, res) => {
       content: text,
       platforms: [platform.toLowerCase()],
       scheduledDate,
-      mediaUrl: mediaFileName
+      mediaUrl: mediaFileName,
+      status: 'pending'
     });
 
     await post.save();
@@ -146,14 +147,122 @@ router.post('/scheduled', auth, async (req, res) => {
 // Get all scheduled posts for the authenticated user
 router.get('/scheduled', auth, async (req, res) => {
   try {
+    console.log('Fetching scheduled posts for user:', req.user.id);
+    
     const posts = await ScheduledPost.find({
-      userId: req.user.id,
-      status: 'pending'
+      userId: req.user.id
     }).sort({ scheduledDate: 'asc' });
+    
+    console.log('Found posts:', posts.length);
+    console.log('Posts data:', JSON.stringify(posts, null, 2));
+    
     res.json(posts);
   } catch (error) {
-    console.error('Error fetching scheduled posts:', error);
-    res.status(500).json({ message: 'Error fetching scheduled posts' });
+    console.error('Detailed error in scheduled posts:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({ 
+      message: 'Error fetching scheduled posts',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Get analytics data
+router.get('/analytics', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Get all posts for the user
+    const posts = await Post.find({ userId });
+    const scheduledPosts = await ScheduledPost.find({ userId });
+
+    // Calculate total posts
+    const totalPosts = posts.length + scheduledPosts.length;
+
+    // Calculate engagement rate (example calculation)
+    const totalEngagement = posts.reduce((sum, post) => {
+      return sum + (post.likes || 0) + (post.comments || 0) + (post.shares || 0);
+    }, 0);
+    const engagementRate = totalPosts > 0 ? (totalEngagement / totalPosts).toFixed(2) : 0;
+
+    // Calculate platform statistics
+    const platformStats = {};
+    posts.forEach(post => {
+      if (!platformStats[post.platform]) {
+        platformStats[post.platform] = {
+          postCount: 0,
+          totalLikes: 0,
+          totalComments: 0,
+          totalShares: 0
+        };
+      }
+      platformStats[post.platform].postCount++;
+      platformStats[post.platform].totalLikes += post.likes || 0;
+      platformStats[post.platform].totalComments += post.comments || 0;
+      platformStats[post.platform].totalShares += post.shares || 0;
+    });
+
+    // Calculate averages for each platform
+    Object.keys(platformStats).forEach(platform => {
+      const stats = platformStats[platform];
+      stats.avgLikes = (stats.totalLikes / stats.postCount).toFixed(1);
+      stats.avgComments = (stats.totalComments / stats.postCount).toFixed(1);
+      stats.avgShares = (stats.totalShares / stats.postCount).toFixed(1);
+      stats.engagementRate = ((stats.totalLikes + stats.totalComments + stats.totalShares) / stats.postCount).toFixed(2);
+    });
+
+    // Get top performing posts
+    const topPosts = [...posts]
+      .sort((a, b) => {
+        const engagementA = (a.likes || 0) + (a.comments || 0) + (a.shares || 0);
+        const engagementB = (b.likes || 0) + (b.comments || 0) + (b.shares || 0);
+        return engagementB - engagementA;
+      })
+      .slice(0, 5);
+
+    // Calculate recent performance metrics
+    const recentPerformance = [
+      {
+        label: 'Posts Last Week',
+        value: posts.filter(post => {
+          const postDate = new Date(post.createdAt);
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return postDate >= weekAgo;
+        }).length,
+        change: 10 // Example change percentage
+      },
+      {
+        label: 'Average Engagement',
+        value: engagementRate,
+        change: 5 // Example change percentage
+      },
+      {
+        label: 'Top Platform',
+        value: Object.entries(platformStats)
+          .sort(([, a], [, b]) => b.engagementRate - a.engagementRate)[0]?.[0] || 'N/A',
+        change: 0
+      },
+      {
+        label: 'Scheduled Posts',
+        value: scheduledPosts.length,
+        change: 15 // Example change percentage
+      }
+    ];
+
+    res.json({
+      totalPosts,
+      engagementRate,
+      platformStats,
+      topPosts,
+      recentPerformance
+    });
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({ message: 'Error fetching analytics data' });
   }
 });
 
