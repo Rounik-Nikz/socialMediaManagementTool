@@ -2,11 +2,9 @@
 
 ## **Overview**
 
-A comprehensive API for managing social media posts, scheduling content, generating AI-powered captions, and analyzing engagement metrics. Built for **Runtime Terrors** hackathon project.
+A comprehensive API for managing social media posts, scheduling content, generating AI-powered captions, and analyzing engagement metrics. Built for **a** hackathon project.
 
 ---
-
-
 
 ### 📌 Developer Notes
 
@@ -42,7 +40,47 @@ A comprehensive API for managing social media posts, scheduling content, generat
 
 ---
 
+That's a great idea, Rounik! Including system design visuals and flow diagrams in your README adds tons of clarity for collaborators, recruiters, or future maintainers.
 
+Here’s a clean and professional way you can structure your README sections for those diagrams:
+
+---
+
+## 📐 System Design & Architecture
+
+### 🧪 Initial System Design (Rough Draft)
+
+> This was our first approach to handling post scheduling and publishing logic. We explored separate collections for scheduled posts and regular posts.
+
+![Final System Design](./designs/systemDesign.png)
+
+---
+
+### 🔁 Data Flow Diagram
+
+> Illustrates how data flows through the system during the post creation, scheduling, and publishing lifecycle.
+
+![Data Flow Diagram](./designs/data_flow_design.png)
+
+---
+
+### 🧾 Post Creation Flow
+
+> Describes the steps involved when a user creates a post.
+
+![Post Creation Diagram](./designs/post_creation_diagram.png)
+
+---
+
+### 🏗️ Final System Design (Refined)
+
+> Our revised and production-ready design—merging scheduled and published posts into a unified collection while using a background service for automated publishing.
+
+![Initial System Design](./designs/system_design.png)
+
+---
+
+# **API DOCUMENTATION**
 
 ## **🔐 Authentication**
 
@@ -490,5 +528,5 @@ Authorization: Bearer [your_jwt_token]
 
 ---
 
-**Made with ❤️ by Runtime Terrors**
+**Made with ❤️ by Runtime Terrors...**
 **Hackathon Submission 2025** 🏆
