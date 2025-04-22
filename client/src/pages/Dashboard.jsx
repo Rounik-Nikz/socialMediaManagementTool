@@ -157,28 +157,28 @@ const Dashboard = () => {
             className="flex items-center justify-center gap-2 p-4 bg-white rounded-lg shadow-md hover:bg-gray-50"
           >
             <DocumentPlusIcon className="w-5 h-5 text-indigo-500" />
-            <span>Create Post</span>
+            <span className='text-gray-600'>Create Post</span>
           </button>
           <button
             onClick={() => navigate('/calendar')}
             className="flex items-center justify-center gap-2 p-4 bg-white rounded-lg shadow-md hover:bg-gray-50"
           >
             <CalendarIcon className="w-5 h-5 text-indigo-500" />
-            <span>View Calendar</span>
+            <span className='text-gray-600'>View Calendar</span>
           </button>
           <button
             onClick={() => navigate('/analytics')}
             className="flex items-center justify-center gap-2 p-4 bg-white rounded-lg shadow-md hover:bg-gray-50"
           >
             <ChartBarIcon className="w-5 h-5 text-indigo-500" />
-            <span>Analytics</span>
+            <span className='text-gray-600'>Analytics</span>
           </button>
           <button
             onClick={() => navigate('/manage-posts')}
             className="flex items-center justify-center gap-2 p-4 bg-white rounded-lg shadow-md hover:bg-gray-50"
           >
             <PencilSquareIcon className="w-5 h-5 text-indigo-500" />
-            <span>Manage Posts</span>
+            <span className='text-gray-600'>Manage Posts</span>
           </button>
         </div>
       </div>
