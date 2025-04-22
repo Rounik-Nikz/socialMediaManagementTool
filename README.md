@@ -40,12 +40,6 @@ A comprehensive API for managing social media posts, scheduling content, generat
 
 ---
 
-That's a great idea, Rounik! Including system design visuals and flow diagrams in your README adds tons of clarity for collaborators, recruiters, or future maintainers.
-
-Here’s a clean and professional way you can structure your README sections for those diagrams:
-
----
-
 ## 📐 System Design & Architecture
 
 ### 🧪 Initial System Design (Rough Draft)
